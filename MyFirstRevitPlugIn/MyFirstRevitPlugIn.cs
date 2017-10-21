@@ -16,8 +16,8 @@ namespace MyFirstRevitPlugIn
     public class MyFirstRevitPlugIn : IExternalCommand
     {
         public Result Execute(
-            ExternalCommandData commandData, 
-            ref string message, 
+            ExternalCommandData commandData,
+            ref string message,
             ElementSet elements
             )
         {
@@ -35,11 +35,23 @@ namespace MyFirstRevitPlugIn
                 Element elem = doc.GetElement(pickedRef);
                 Group group = elem as Group;
 
-                XYZ point = sel.PickPoint("Please pick a point to place group");
+                XYZ origin = GetElementCenter(group);
+                Room room = GetRoomOfGroup(doc, origin);
+
+                XYZ sourceCenter = GetRoomCenter(room);
+
+                RoomPickFilter roomPickFilter = new RoomPickFilter();
+                IList<Reference> rooms =
+                  sel.PickObjects(
+                    ObjectType.Element,
+                    roomPickFilter,
+                    "Select target rooms for duplicate furniture group");
 
                 Transaction trans = new Transaction(doc);
-                trans.Start("MyFirstPlugIn");
-                doc.Create.PlaceGroup(point, group.GroupType);
+                trans.Start("Lab");
+                PlaceFurnitureInRooms(
+                  doc, rooms, sourceCenter,
+                  group.GroupType, origin);
                 trans.Commit();
 
                 return Result.Succeeded;
@@ -53,19 +65,92 @@ namespace MyFirstRevitPlugIn
                 message = ex.Message;
                 return Result.Failed;
             }
-
         }
-        public class GroupPickFilter : ISelectionFilter
+
+        private XYZ GetElementCenter(Element elem)
         {
-            public bool AllowElement(Element e)
+            BoundingBoxXYZ bounding = elem.get_BoundingBox(null);
+            XYZ center = (bounding.Max + bounding.Min) * 0.5;
+            return center;
+        }
+
+        private Room GetRoomOfGroup(Document doc, XYZ point)
+        {
+            FilteredElementCollector collector =
+              new FilteredElementCollector(doc);
+            collector.OfCategory(BuiltInCategory.OST_Rooms);
+            Room room = null;
+            foreach (Element elem in collector)
             {
-                return (e.Category.Id.IntegerValue.Equals(
-                  (int)BuiltInCategory.OST_IOSModelGroups));
+                room = elem as Room;
+                if (room != null)
+                {
+                    if (room.IsPointInRoom(point))
+                    {
+                        break;
+                    }
+                }
             }
-            public bool AllowReference(Reference r, XYZ p)
+            return room;
+        }
+
+        private XYZ GetRoomCenter(Room room)
+        {
+            XYZ boundCenter = GetElementCenter(room);
+            LocationPoint locPt = (LocationPoint)room.Location;
+            XYZ roomCenter =
+              new XYZ(boundCenter.X, boundCenter.Y, locPt.Point.Z);
+            return roomCenter;
+        }
+
+        public void PlaceFurnitureInRooms(
+                        Document doc,
+                        IList<Reference> rooms,
+                        XYZ sourceCenter,
+                        GroupType gt,
+                        XYZ groupOrigin)
+        {
+            XYZ offset = groupOrigin - sourceCenter;
+            XYZ offsetXY = new XYZ(offset.X, offset.Y, 0);
+
+            foreach (Reference r in rooms)
             {
-                return false;
+                Room roomTarget = doc.GetElement(r) as Room;
+                if (roomTarget != null)
+                {
+                    XYZ roomCenter = GetRoomCenter(roomTarget);
+                    Group group =
+                      doc.Create.PlaceGroup(roomCenter + offsetXY, gt);
+                }
             }
+        }
+
+    }
+    internal class GroupPickFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element e)
+        {
+            return (e.Category.Id.IntegerValue.Equals(
+              (int)BuiltInCategory.OST_IOSModelGroups));
+        }
+        public bool AllowReference(Reference r, XYZ p)
+        {
+            return false;
         }
     }
+
+    internal class RoomPickFilter : ISelectionFilter
+    {
+        public bool AllowElement(Element e)
+        {
+            return (e.Category.Id.IntegerValue.Equals(
+              (int)BuiltInCategory.OST_Rooms));
+        }
+
+        public bool AllowReference(Reference r, XYZ p)
+        {
+            return false;
+        }
+    }
+
 }
