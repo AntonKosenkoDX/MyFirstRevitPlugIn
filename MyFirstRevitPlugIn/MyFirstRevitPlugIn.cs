@@ -24,24 +24,48 @@ namespace MyFirstRevitPlugIn
             UIApplication uiApp = commandData.Application;
             Document doc = uiApp.ActiveUIDocument.Document;
 
-            Reference pickedRef = null;
+            try
+            {
+                Reference pickedRef = null;
 
-            Selection sel = uiApp.ActiveUIDocument.Selection;
-            pickedRef = sel.PickObject(
-                ObjectType.Element,
-                "Please, select group"
-                );
-            Element elem = doc.GetElement(pickedRef);
-            Group group = elem as Group;
+                Selection sel = uiApp.ActiveUIDocument.Selection;
+                GroupPickFilter selFilter = new GroupPickFilter();
+                pickedRef = sel.PickObject(ObjectType.Element, selFilter,
+                  "Please select a group");
+                Element elem = doc.GetElement(pickedRef);
+                Group group = elem as Group;
 
-            XYZ point = sel.PickPoint("Please pick a point to place group");
+                XYZ point = sel.PickPoint("Please pick a point to place group");
 
-            Transaction trans = new Transaction(doc);
-            trans.Start("MyFirstPlugIn");
-            doc.Create.PlaceGroup(point, group.GroupType);
-            trans.Commit();
+                Transaction trans = new Transaction(doc);
+                trans.Start("MyFirstPlugIn");
+                doc.Create.PlaceGroup(point, group.GroupType);
+                trans.Commit();
 
-            return Result.Succeeded;
+                return Result.Succeeded;
+            }
+            catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+            {
+                return Result.Cancelled;
+            }
+            catch (Exception ex)
+            {
+                message = ex.Message;
+                return Result.Failed;
+            }
+
+        }
+        public class GroupPickFilter : ISelectionFilter
+        {
+            public bool AllowElement(Element e)
+            {
+                return (e.Category.Id.IntegerValue.Equals(
+                  (int)BuiltInCategory.OST_IOSModelGroups));
+            }
+            public bool AllowReference(Reference r, XYZ p)
+            {
+                return false;
+            }
         }
     }
 }
