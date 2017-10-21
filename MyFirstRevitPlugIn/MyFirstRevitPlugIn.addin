@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-16" standalone="no"?>
+<RevitAddIns>
+  <AddIn Type="Command">
+    <Assembly>C:\Users\beaut\source\repos\MyFirstRevitPlugIn\MyFirstRevitPlugIn\bin\Debug\MyFirstRevitPlugIn.dll</Assembly>
+    <AddInId>76eb700a-2c85-4888-a78d-31429ecae9ed</AddInId>
+    <FullClassName>MyFirstRevitPlugIn.MyFirstRevitPlugIn</FullClassName>
+    <Text>Copypaste group</Text>
+    <VendorId>NAME</VendorId>
+    <VendorDescription>Your Company Information</VendorDescription>
+  </AddIn>
+</RevitAddIns>
